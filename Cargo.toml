@@ -1,0 +1,9 @@
+[package]
+name = "rttp"
+version = "0.1.0"
+authors = ["bes"]
+edition = "2018"
+
+[dependencies]
+reqwest = "0.9.12"
+clap = "2.32.0"
