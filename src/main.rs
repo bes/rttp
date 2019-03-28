@@ -1,6 +1,9 @@
 extern crate clap;
 extern crate reqwest;
+#[macro_use]
+extern crate simple_error;
 
+use std::error;
 use std::time::Instant;
 
 use clap::{App, Arg, ArgMatches};
@@ -50,11 +53,17 @@ fn main() {
     let count = 5;
     let mut sum: u128 = 0;
 
-    let first = run(&client, &matches, url, file_name);
+    let first = match run(&client, &matches, url, file_name) {
+        Ok(first) => first,
+        Err(e) => {
+            println!("Stupid! {}", e);
+            return;
+        }
+    };
     println!("First run {}", first);
 
     for _ in 0..count {
-        let millis = run(&client, &matches, url, file_name);
+        let millis = run(&client, &matches, url, file_name).unwrap();
         sum += millis;
         println!("Done {}", millis)
     }
@@ -65,24 +74,30 @@ fn main() {
     println!("Avg {}", avg)
 }
 
-fn run(client: &reqwest::Client, matches: &ArgMatches, url: &str, file_name: &str) -> u128 {
-    let c = match matches.value_of("METHOD").unwrap_or("") {
-        "get" => client.get(url),
-        "put" => {
-            let mut f = File::open(file_name).unwrap();
+fn run(
+    client: &reqwest::Client,
+    matches: &ArgMatches,
+    url: &str,
+    file_name: &str,
+) -> Result<u128, Box<error::Error>> {
+    let c = match matches.value_of("METHOD") {
+        Some("get") => client.get(url),
+        Some("put") => {
+            let mut f = File::open(file_name)?;
             let mut buffer = Vec::new();
-            f.read_to_end(&mut buffer).unwrap();
+            f.read_to_end(&mut buffer)?;
 
             client.put(url).body(buffer)
         }
-        _ => panic!("No such method"),
+        Some(_) => bail!("No such method"),
+        _ => bail!("No method at all"),
     };
 
     let before = Instant::now();
-    c.send().unwrap();
+    c.send()?;
     let after = Instant::now();
     let d = after.duration_since(before);
     let millis = d.as_millis();
 
-    return millis;
+    return Ok(millis);
 }
